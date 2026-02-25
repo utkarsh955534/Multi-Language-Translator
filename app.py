@@ -1,10 +1,10 @@
 from flask import Flask, render_template, request, jsonify
 import requests
 import os
+import time
 
 app = Flask(__name__)
 
-# HuggingFace Inference API
 API_URL = "https://api-inference.huggingface.co/models/facebook/nllb-200-distilled-600M"
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
@@ -12,7 +12,6 @@ headers = {
     "Authorization": f"Bearer {HF_TOKEN}"
 }
 
-# language mapping (NLLB codes)
 languages = {
     "hindi": "hin_Deva",
     "gujarati": "guj_Gujr",
@@ -47,6 +46,21 @@ def query(payload):
     return response.json()
 
 
+# ⭐ auto retry while model wakes
+def query_with_retry(payload, retries=5):
+    for _ in range(retries):
+        result = query(payload)
+
+        # model waking
+        if isinstance(result, dict) and "estimated_time" in result:
+            time.sleep(5)
+            continue
+
+        return result
+
+    return {"error": "Model still loading"}
+
+
 @app.route("/")
 def home():
     return render_template("index.html", languages=languages)
@@ -59,6 +73,9 @@ def translate_api():
     text = data.get("text")
     lang = data.get("lang")
 
+    if not text:
+        return jsonify({"translated": "Enter some text"})
+
     if lang not in languages:
         return jsonify({"translated": "Language not supported"})
 
@@ -69,13 +86,12 @@ def translate_api():
         }
     }
 
-    result = query(payload)
+    result = query_with_retry(payload)
 
-    # handle first load / errors
     try:
         translated = result[0]["translation_text"]
     except:
-        translated = "Model loading… please try again"
+        translated = "Model is busy… try again shortly"
 
     return jsonify({"translated": translated})
 

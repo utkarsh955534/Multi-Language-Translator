@@ -1,20 +1,33 @@
 from flask import Flask, render_template, request, jsonify
-import requests
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import torch
 import os
-import time
 
 app = Flask(__name__)
 
-API_URL = "https://api-inference.huggingface.co/models/facebook/nllb-200-distilled-600M"
-HF_TOKEN = os.environ.get("HF_TOKEN")
+model_name = "facebook/nllb-200-distilled-600M"
 
-headers = {
-    "Authorization": f"Bearer {HF_TOKEN}"
-}
+print("Loading tokenizer...")
+tokenizer = AutoTokenizer.from_pretrained(model_name)
 
+print("Loading model...")
+model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model.to(device)
+
+print("Model loaded on:", device)
+
+# language codes (NLLB)
 languages = {
     "hindi": "hin_Deva",
     "gujarati": "guj_Gujr",
+    "spanish": "spa_Latn",
+    "french": "fra_Latn",
+    "russian": "rus_Cyrl",
+    "chinese": "zho_Hans",
+    "bhojpuri": "bho_Deva",
+    "sanskrit": "san_Deva",
     "marathi": "mar_Deva",
     "bengali": "ben_Beng",
     "tamil": "tam_Taml",
@@ -23,43 +36,34 @@ languages = {
     "punjabi": "pan_Guru",
     "urdu": "urd_Arab",
     "nepali": "npi_Deva",
-    "spanish": "spa_Latn",
-    "french": "fra_Latn",
-    "german": "deu_Latn",
+    "odia": "ory_Orya",
+    "kannada": "kan_Knda",
+     "german": "deu_Latn",
     "italian": "ita_Latn",
     "portuguese": "por_Latn",
     "arabic": "arb_Arab",
     "turkish": "tur_Latn",
     "korean": "kor_Hang",
     "japanese": "jpn_Jpan",
-    "chinese": "zho_Hans",
     "thai": "tha_Thai",
     "indonesian": "ind_Latn",
-    "vietnamese": "vie_Latn",
-    "bhojpuri": "bho_Deva",
-    "sanskrit": "san_Deva"
+    "vietnamese": "vie_Latn"
 }
 
 
-def query(payload):
-    response = requests.post(API_URL, headers=headers, json=payload)
-    return response.json()
+def translate(text, target_lang):
 
+    tokenizer.src_lang = "eng_Latn"   # English source
 
-# ⭐ auto retry while model wakes
-def query_with_retry(payload, retries=5):
-    for _ in range(retries):
-        result = query(payload)
+    inputs = tokenizer(text, return_tensors="pt").to(device)
 
-        # model waking
-        if isinstance(result, dict) and "estimated_time" in result:
-            time.sleep(5)
-            continue
+    generated = model.generate(
+        **inputs,
+        forced_bos_token_id=tokenizer.convert_tokens_to_ids(target_lang),
+        max_length=200
+    )
 
-        return result
-
-    return {"error": "Model still loading"}
-
+    return tokenizer.batch_decode(generated, skip_special_tokens=True)[0]
 
 @app.route("/")
 def home():
@@ -68,35 +72,24 @@ def home():
 
 @app.route("/translate", methods=["POST"])
 def translate_api():
-    data = request.get_json()
-
-    text = data.get("text")
-    lang = data.get("lang")
-
-    if not text:
-        return jsonify({"translated": "Enter some text"})
-
-    if lang not in languages:
-        return jsonify({"translated": "Language not supported"})
-
-    payload = {
-        "inputs": text,
-        "parameters": {
-            "tgt_lang": languages[lang]
-        }
-    }
-
-    result = query_with_retry(payload)
-
     try:
-        translated = result[0]["translation_text"]
-    except:
-        translated = "Model is busy… try again shortly"
+        data = request.get_json()
 
-    return jsonify({"translated": translated})
+        text = data.get("text")
+        lang = data.get("lang").lower()
+
+        if lang not in languages:
+            return jsonify({"translated":"Language not supported"})
+
+        result = translate(text, languages[lang])
+
+        return jsonify({"translated": result})
+
+    except Exception as e:
+        print("ERROR:", e)
+        return jsonify({"translated":"Server error"}),500
 
 
-# Render port binding
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)

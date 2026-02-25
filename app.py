@@ -11,7 +11,11 @@ print("Loading tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 print("Loading model...")
-model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+model = AutoModelForSeq2SeqLM.from_pretrained(
+    model_name,
+    torch_dtype=torch.float16,
+    low_cpu_mem_usage=True
+)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model.to(device)

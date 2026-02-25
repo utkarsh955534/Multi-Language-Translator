@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>AI Translator</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>🌍 AI Multi-Language Translator</h1>
+
+    <div class="card">
+
+        <textarea id="input" placeholder="Type text to translate..."></textarea>
+
+        <div class="controls">
+            <select id="lang">
+               
+                <!-- Indian languages -->
+<option value="hindi">Hindi</option>
+<option value="gujarati">Gujarati</option>
+<option value="marathi">Marathi</option>
+<option value="bengali">Bengali</option>
+<option value="tamil">Tamil</option>
+<option value="telugu">Telugu</option>
+<option value="malayalam">Malayalam</option>
+<option value="punjabi">Punjabi</option>
+<option value="urdu">Urdu</option>
+<option value="nepali">Nepali</option>
+<option value="odia">Odia</option>
+<option value="kannada">Kannada</option>
+<option value="bhojpuri">Bhojpuri</option>
+<option value="sanskrit">Sanskrit</option>
+
+<!-- World languages -->
+<option value="spanish">Spanish</option>
+<option value="french">French</option>
+<option value="german">German</option>
+<option value="italian">Italian</option>
+<option value="portuguese">Portuguese</option>
+<option value="arabic">Arabic</option>
+<option value="turkish">Turkish</option>
+<option value="korean">Korean</option>
+<option value="japanese">Japanese</option>
+<option value="chinese">Chinese</option>
+<option value="thai">Thai</option>
+<option value="indonesian">Indonesian</option>
+<option value="vietnamese">Vietnamese</option>
+            </select>
+
+            <button onclick="translateText()">Translate</button>
+        </div>
+
+        <div class="outputBox">
+            <p id="output">Translation will appear here…</p>
+        </div>
+
+    </div>
+
+</div>
+
+<div id="loader" class="loader hidden"></div>
+
+<script>
+async function translateText(){
+    const text = document.getElementById("input").value
+    const lang = document.getElementById("lang").value
+
+    document.getElementById("loader").classList.remove("hidden")
+
+    const res = await fetch("/translate",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({text,lang})
+    })
+
+    const data = await res.json()
+
+    document.getElementById("output").innerText = data.translated
+    document.getElementById("loader").classList.add("hidden")
+}
+</script>
+
+</body>
+</html>

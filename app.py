@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 # HuggingFace Inference API
 API_URL = "https://api-inference.huggingface.co/models/facebook/nllb-200-distilled-600M"
-HF_TOKEN = os.environ.get("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")
+HF_TOKEN = os.environ.get("HF_TOKEN")
 
 headers = {
     "Authorization": f"Bearer {HF_TOKEN}"
